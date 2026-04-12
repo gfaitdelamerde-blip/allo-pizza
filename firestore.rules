@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - orderId: string (required)
+    //   - userId: string (optional, for logged in users)
+    //   - email: string (required, email format)
+    //   - items: list (required)
+    //   - totalPrice: number (required, positive)
+    //   - paymentMethod: string (required, 'online' | 'onsite')
+    //   - status: string (required, 'pending' | 'completed')
+    //   - timestamp: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['orderId', 'email', 'items', 'totalPrice', 'paymentMethod', 'timestamp']) &&
+             data.orderId is string &&
+             isValidEmail(data.email) &&
+             data.items is list &&
+             data.totalPrice is number && data.totalPrice > 0 &&
+             data.paymentMethod in ['online', 'onsite'] &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.createdAt is timestamp;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "gfaitdelamerde@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allo Pizza — Écran Cuisine</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--card:#1e1e1e;
+  --border:rgba(255,255,255,0.07);--gold:#f0a500;
+  --text:#f0ece4;--muted:#666;
+  --pending:#f59e0b;--pending-bg:rgba(245,158,11,0.1);
+  --preparing:#3b82f6;--preparing-bg:rgba(59,130,246,0.1);
+  --completed:#22c55e;--completed-bg:rgba(34,197,94,0.08);
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;min-height:100vh;}
+
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.logo{font-size:1.1rem;font-weight:700;color:var(--gold);letter-spacing:.05em;}
+.header-right{display:flex;align-items:center;gap:14px;}
+.live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--completed);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--completed);animation:blink 2s infinite;}
+.dot.error{background:#ef4444;animation:none;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+#uptime{font-size:11px;color:var(--muted);}
+.btn-sound{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;}
+.btn-sound.on{border-color:var(--gold);color:var(--gold);}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:18px 24px;max-width:1400px;margin:0 auto;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;}
+.stat-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.stat-val{font-size:24px;font-weight:700;line-height:1;}
+.stat-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;}
+
+.filters{display:flex;gap:8px;padding:0 24px 14px;max-width:1400px;margin:0 auto;flex-wrap:wrap;align-items:center;}
+.fbtn{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.fbtn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600;}
+.btn-clear{margin-left:auto;padding:6px 16px;border-radius:20px;border:1px solid rgba(239,68,68,.25);background:none;color:#ef4444;font-size:12px;cursor:pointer;font-family:inherit;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:0 24px 32px;max-width:1400px;margin:0 auto;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;animation:pop .25s ease;}
+@keyframes pop{from{opacity:0;transform:scale(.97);}to{opacity:1;transform:scale(1);}}
+.card.pending{border-top:3px solid var(--pending);}
+.card.preparing{border-top:3px solid var(--preparing);}
+.card.completed{border-top:3px solid var(--completed);opacity:.55;}
+
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;padding:13px 15px 10px;border-bottom:1px solid var(--border);}
+.order-id{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.06em;}
+.order-email{font-size:13px;color:var(--muted);margin-top:2px;}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.badge.pending{background:var(--pending-bg);color:var(--pending);}
+.badge.preparing{background:var(--preparing-bg);color:var(--preparing);}
+.badge.completed{background:var(--completed-bg);color:var(--completed);}
+
+.card-meta{display:flex;gap:6px;padding:8px 15px;flex-wrap:wrap;border-bottom:1px solid var(--border);}
+.pill{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:2px 10px;border-radius:10px;font-size:11px;color:var(--muted);}
+.pill.asap{color:var(--pending);border-color:rgba(245,158,11,.25);}
+
+.card-items{padding:10px 15px;}
+.item{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);}
+.item:last-child{border-bottom:none;}
+.item-qty{background:rgba(240,165,0,.12);color:var(--gold);width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}
+.item-name{font-size:14px;color:var(--text);}
+.item-note{font-size:12px;color:var(--pending);margin-top:3px;}
+.item-pickup{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.card-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 15px;border-top:1px solid var(--border);}
+.total{font-size:14px;font-weight:700;color:var(--gold);}
+.actions{display:flex;gap:7px;}
+.abtn{padding:6px 13px;border-radius:7px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+.abtn:hover{opacity:.8;}
+.abtn-take{background:var(--pending-bg);color:var(--pending);border:1px solid rgba(245,158,11,.25);}
+.abtn-finish{background:var(--completed-bg);color:var(--completed);border:1px solid rgba(34,197,94,.25);}
+.abtn-undo{background:rgba(255,255,255,.04);color:var(--muted);border:1px solid var(--border);}
+
+.empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--muted);}
+.empty-icon{font-size:44px;margin-bottom:14px;opacity:.3;}
+.empty-title{font-size:17px;color:var(--text);margin-bottom:6px;}
+.empty-sub{font-size:13px;}
+
+#error-banner{display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:10px 24px;font-size:13px;text-align:center;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Allo Pizza — Cuisine</div>
+  <div class="header-right">
+    <div class="live">
+      <div class="dot" id="dot"></div>
+      En direct
+    </div>
+    <span id="uptime">Connexion...</span>
+    <button class="btn-sound" id="btn-sound" onclick="toggleSound()">Son OFF</button>
+  </div>
+</header>
+
+<div id="error-banner"></div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="stat-icon" style="background:rgba(245,158,11,.1);">🔔</div>
+    <div><div class="stat-val" id="s-pending" style="color:var(--pending);">0</div><div class="stat-lbl">En attente</div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon" style="background:rgba(59,130,246,.1);">👨‍🍳</div>
+    <div><div class="stat-val" id="s-preparing" style="color:var(--preparing);">0</div><div class="stat-lbl">En cours</div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon" style="background:rgba(34,197,94,.1);">✅</div>
+    <div><div class="stat-val" id="s-completed" style="color:var(--completed);">0</div><div class="stat-lbl">Terminées</div></div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon" style="background:rgba(240,165,0,.1);">💶</div>
+    <div><div class="stat-val" id="s-revenue" style="color:var(--gold);">0 €</div><div class="stat-lbl">Chiffre du jour</div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="fbtn active" onclick="setFilter('all',this)">Toutes</button>
+  <button class="fbtn" onclick="setFilter('pending',this)">En attente</button>
+  <button class="fbtn" onclick="setFilter('preparing',this)">En cours</button>
+  <button class="fbtn" onclick="setFilter('completed',this)">Terminées</button>
+  <button class="btn-clear" onclick="clearCompleted()">Effacer terminées</button>
+</div>
+
+<div class="grid" id="grid">
+  <div class="empty">
+    <div class="empty-icon">🔌</div>
+    <div class="empty-title">Connexion à Firebase...</div>
+    <div class="empty-sub">Les commandes apparaîtront ici automatiquement</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ══ CONFIG — directement depuis ton firebase-applet-config.json ══
+const firebaseConfig = {
+  apiKey:            "AIzaSyC6FZrtZbspZ2zpoL7Ajv1LHdhv1I_F9bc",
+  authDomain:        "site-ia-2f12a.firebaseapp.com",
+  projectId:         "site-ia-2f12a",
+  storageBucket:     "site-ia-2f12a.firebasestorage.app",
+  messagingSenderId: "479562604006",
+  appId:             "1:479562604006:web:4372227e8dd03a64950a27"
+};
+
+// ID de ta base Firestore personnalisée (firestoreDatabaseId)
+const FIRESTORE_DB_ID = "ai-studio-c47cf460-1d70-473b-86b6-71964da4eb5d";
+
+// ══ INIT ══
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app, FIRESTORE_DB_ID);
+
+let orders      = {};
+let filterState = 'all';
+let soundEnabled = false;
+let knownIds    = new Set();
+let firstLoad   = true;
+
+// ══ ÉCOUTE EN TEMPS RÉEL ══
+const q = query(collection(db, 'orders'), orderBy('timestamp', 'desc'));
+
+onSnapshot(q,
+  (snapshot) => {
+    let hasNew = false;
+
+    snapshot.docChanges().forEach(change => {
+      const id   = change.doc.id;
+      const data = change.doc.data();
+
+      if (change.type === 'added') {
+        if (!firstLoad && !knownIds.has(id)) hasNew = true;
+        knownIds.add(id);
+        orders[id] = { ...data, _id: id };
+      }
+      if (change.type === 'modified') {
+        orders[id] = { ...data, _id: id };
+      }
+      if (change.type === 'removed') {
+        delete orders[id];
+      }
+    });
+
+    firstLoad = false;
+    if (hasNew && soundEnabled) playBeep();
+
+    document.getElementById('dot').classList.remove('error');
+    document.getElementById('uptime').textContent =
+      'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+    render();
+  },
+  (err) => {
+    document.getElementById('dot').classList.add('error');
+    document.getElementById('uptime').textContent = 'Erreur de connexion';
+    const banner = document.getElementById('error-banner');
+    banner.style.display = 'block';
+    banner.textContent = 'Erreur Firebase : ' + err.message + ' — Vérifie les règles Firestore (Database rules).';
+    console.error(err);
+  }
+);
+
+// ══ CHANGER STATUT ══
+window.setStatus = async (id, status) => {
+  orders[id].status = status;
+  render();
+  await updateDoc(doc(db, 'orders', id), { status });
+};
+
+window.clearCompleted = async () => {
+  const done = Object.entries(orders).filter(([, o]) => o.status === 'completed');
+  for (const [id] of done) {
+    delete orders[id];
+    await deleteDoc(doc(db, 'orders', id));
+  }
+  render();
+};
+
+// ══ FILTRE ══
+window.setFilter = (f, btn) => {
+  filterState = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+};
+
+// ══ RENDU ══
+function render() {
+  const all = Object.values(orders).sort((a, b) => {
+    const ta = a.timestamp?.toMillis?.() ?? a.timestamp ?? 0;
+    const tb = b.timestamp?.toMillis?.() ?? b.timestamp ?? 0;
+    return tb - ta;
+  });
+
+  // Stats
+  const nPending   = all.filter(o => o.status === 'pending').length;
+  const nPreparing = all.filter(o => o.status === 'preparing').length;
+  const nCompleted = all.filter(o => o.status === 'completed').length;
+  document.getElementById('s-pending').textContent   = nPending;
+  document.getElementById('s-preparing').textContent = nPreparing;
+  document.getElementById('s-completed').textContent = nCompleted;
+
+  const revenue = all
+    .filter(o => o.status === 'completed')
+    .reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0);
+  document.getElementById('s-revenue').textContent =
+    revenue.toFixed(2).replace('.', ',') + ' €';
+
+  // Titre navigateur
+  document.title = nPending > 0
+    ? `(${nPending}) Allo Pizza — Cuisine`
+    : 'Allo Pizza — Cuisine';
+
+  const filtered = filterState === 'all'
+    ? all
+    : all.filter(o => o.status === filterState);
+
+  const grid = document.getElementById('grid');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">
+      <div class="empty-icon">👨‍🍳</div>
+      <div class="empty-title">Aucune commande ici</div>
+      <div class="empty-sub">Les nouvelles commandes arrivent automatiquement</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(o => {
+    const id     = o._id;
+    const status = o.status || 'pending';
+    const badgeLabel = status === 'pending' ? 'En attente'
+                     : status === 'preparing' ? 'En cours'
+                     : 'Terminée';
+
+    // Heure
+    let heure = '';
+    if (o.timestamp?.toDate) {
+      heure = o.timestamp.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Articles
+    const itemsHtml = (o.items || []).map(item => {
+      const noteHtml   = item.notes
+        ? `<div class="item-note">⚠️ ${item.notes}</div>` : '';
+      const pickupHtml = item.pickupTime && item.pickupTime !== 'asap'
+        ? `<div class="item-pickup">🕐 Retrait : ${item.pickupTime}</div>` : '';
+      return `<div class="item">
+        <div class="item-qty">x${item.quantity || 1}</div>
+        <div>
+          <div class="item-name">${item.name}</div>
+          ${noteHtml}${pickupHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+    // Badges retrait
+    const hasAsap = (o.items || []).some(i => !i.pickupTime || i.pickupTime === 'asap');
+    const pickupTimes = [...new Set(
+      (o.items || [])
+        .filter(i => i.pickupTime && i.pickupTime !== 'asap')
+        .map(i => i.pickupTime)
+    )];
+
+    const payLabel = o.paymentMethod === 'online'
+      ? '💳 Payé en ligne' : '💵 Paiement sur place';
+
+    // Boutons action
+    const actionsHtml = status === 'pending'
+      ? `<button class="abtn abtn-take"   onclick="setStatus('${id}','preparing')">Prendre en charge</button>
+         <button class="abtn abtn-finish" onclick="setStatus('${id}','completed')">Terminer</button>`
+      : status === 'preparing'
+      ? `<button class="abtn abtn-finish" onclick="setStatus('${id}','completed')">Marquer terminé</button>
+         <button class="abtn abtn-undo"   onclick="setStatus('${id}','pending')">Annuler</button>`
+      : `<button class="abtn abtn-undo"   onclick="setStatus('${id}','pending')">Remettre en attente</button>`;
+
+    return `<div class="card ${status}">
+      <div class="card-head">
+        <div>
+          <div class="order-id">#${o.orderId || id.slice(-6).toUpperCase()}</div>
+          <div class="order-email">${o.email || ''}</div>
+        </div>
+        <span class="badge ${status}">${badgeLabel}</span>
+      </div>
+      <div class="card-meta">
+        ${heure ? `<span class="pill">${heure}</span>` : ''}
+        ${hasAsap ? `<span class="pill asap">ASAP</span>` : ''}
+        ${pickupTimes.map(t => `<span class="pill">🕐 ${t}</span>`).join('')}
+        <span class="pill">${payLabel}</span>
+      </div>
+      <div class="card-items">${itemsHtml}</div>
+      <div class="card-foot">
+        <span class="total">${o.totalPrice
+          ? parseFloat(o.totalPrice).toFixed(2).replace('.', ',') + ' €'
+          : ''}</span>
+        <div class="actions">${actionsHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══ SON ══
+window.toggleSound = () => {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('btn-sound');
+  btn.textContent = soundEnabled ? 'Son ON' : 'Son OFF';
+  btn.classList.toggle('on', soundEnabled);
+};
+
+function playBeep() {
+  try {
+    const ctx = new AudioContext();
+    [880, 1100].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+      osc.start(ctx.currentTime + i * 0.15);
+      osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+    });
+  } catch (e) {}
+}
+</script>
+</body>
+</html>
